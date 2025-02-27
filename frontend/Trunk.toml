@@ -1,0 +1,17 @@
+[build]
+# The index HTML file to drive the bundling process.
+target = "index.html"
+# Don't add hash to filenames for deterministic output
+filehash = false
+# Set a specific output name for the WASM module (optional)
+
+[serve]
+# The address to serve on.
+addresses = ["127.0.0.1"]
+# The port to serve on.
+port = 8080
+
+# Handle static files
+[[proxy]]
+backend = "http://localhost:3000/api/"
+rewrite = "/api/"
