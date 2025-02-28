@@ -67,8 +67,14 @@ pub fn app() -> Html {
             let dag_id = pathname.strip_prefix("/dag/").unwrap_or("")
                 .strip_suffix("/graph").unwrap_or("");
             if !dag_id.is_empty() {
+                // URL-decode the DAG ID
+                let decoded_dag_id = match js_sys::decode_uri_component(&dag_id) {
+                    Ok(decoded) => decoded,
+                    Err(_) => js_sys::JsString::from(dag_id.clone())
+                }.as_string().unwrap_or_else(|| dag_id.to_string());
+                
                 html! {
-                    <DAGGraph dag_id={dag_id.to_string()} />
+                    <DAGGraph dag_id={decoded_dag_id} />
                 }
             } else {
                 html! { <DagList /> }

@@ -305,6 +305,7 @@ impl DAGGraph {
             let layout = Object::new();
             Reflect::set(&layout, &JsValue::from_str("name"), &JsValue::from_str("dagre")).unwrap();
             Reflect::set(&layout, &JsValue::from_str("rankDir"), &JsValue::from_str("LR")).unwrap(); // Left to right layout
+            Reflect::set(&layout, &JsValue::from_str("edgeSep"), &JsValue::from_f64(50.0)).unwrap(); // Increase edge separation for better curves
             
             // Adjust spacing based on graph size
             let node_count = graph.tasks.len();
@@ -376,7 +377,20 @@ impl DAGGraph {
             Reflect::set(&edge_style_props, &JsValue::from_str("line-color"), &JsValue::from_str("#ccc")).unwrap();
             Reflect::set(&edge_style_props, &JsValue::from_str("target-arrow-color"), &JsValue::from_str("#ccc")).unwrap();
             Reflect::set(&edge_style_props, &JsValue::from_str("target-arrow-shape"), &JsValue::from_str("triangle")).unwrap();
+            
+            // Simple bezier approach with minimal properties - this should work
             Reflect::set(&edge_style_props, &JsValue::from_str("curve-style"), &JsValue::from_str("bezier")).unwrap();
+            
+            // For horizontal layout (LR), we need vertical control point offsets
+            let cp_distances = Array::new();
+            cp_distances.push(&JsValue::from_f64(20.0)); // Single control point with 80px offset
+            
+            Reflect::set(&edge_style_props, &JsValue::from_str("control-point-distances"), &cp_distances).unwrap();
+            
+            let cp_weights = Array::new();
+            cp_weights.push(&JsValue::from_f64(0.5)); // Control point in the middle
+            
+            Reflect::set(&edge_style_props, &JsValue::from_str("control-point-weights"), &cp_weights).unwrap();
             
             Reflect::set(&edge_style, &JsValue::from_str("style"), &edge_style_props).unwrap();
             style.push(&edge_style);
@@ -411,15 +425,59 @@ impl DAGGraph {
             let cy = Reflect::apply(&cytoscape_fn, &JsValue::NULL, &args)
                 .expect("failed to create cytoscape instance");
             
-            // Add right-click event listener for context menu
+            // Add right-click event listener for context menu and left-click for highlighting
             let link = ctx.link().clone();
             
-            // Use JS to add the right-click event listener directly to cy
+            // We need to add the styles to the Cytoscape instance
+            // Adding highlighting styles
+            let highlight_edge_style = Object::new();
+            Reflect::set(&highlight_edge_style, &JsValue::from_str("selector"), &JsValue::from_str(".highlight")).unwrap();
+            
+            let highlight_edge_props = Object::new();
+            Reflect::set(&highlight_edge_props, &JsValue::from_str("line-color"), &JsValue::from_str("#ff0000")).unwrap();
+            Reflect::set(&highlight_edge_props, &JsValue::from_str("target-arrow-color"), &JsValue::from_str("#ff0000")).unwrap();
+            Reflect::set(&highlight_edge_props, &JsValue::from_str("width"), &JsValue::from_f64(4.0)).unwrap();
+            
+            Reflect::set(&highlight_edge_style, &JsValue::from_str("style"), &highlight_edge_props).unwrap();
+            style.push(&highlight_edge_style);
+            
+            // Use JS to add the event listeners directly to cy
             let js_code = r#"
+                // Right-click event for context menu
                 cy.on('cxttap', 'node', function(evt){
                     var node = evt.target;
                     var nodeId = node.data('taskId');
                     window.showContextMenu(evt.originalEvent, nodeId);
+                });
+                
+                // Direct edge highlighting using style properties instead of classes
+                cy.on('tap', 'node', function(evt){
+                    var node = evt.target;
+                    
+                    // First reset all edges
+                    cy.edges().style({
+                        'line-color': '#ccc',
+                        'target-arrow-color': '#ccc',
+                        'width': 2
+                    });
+                    
+                    // Highlight connected edges
+                    node.connectedEdges().style({
+                        'line-color': '#ff0000',
+                        'target-arrow-color': '#ff0000',
+                        'width': 4
+                    });
+                });
+                
+                // Clear highlights when clicking on the background
+                cy.on('tap', function(evt){
+                    if(evt.target === cy){
+                        cy.edges().style({
+                            'line-color': '#ccc',
+                            'target-arrow-color': '#ccc',
+                            'width': 2
+                        });
+                    }
                 });
             "#;
             

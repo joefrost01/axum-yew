@@ -10,7 +10,7 @@ use yew_hooks::prelude::*;
 pub fn dag_list() -> Html {
     let query = use_state(|| DAGsQuery {
         page: Some(1),
-        limit: Some(20),
+        limit: Some(10),
         sort_by: Some("dag_id".to_string()),
         sort_order: Some("asc".to_string()),
         ..Default::default()
@@ -76,6 +76,18 @@ pub fn dag_list() -> Html {
         })
     };
 
+    // Handler for changing the number of rows per page
+    let on_limit_change = {
+        let query = query.clone();
+
+        Callback::from(move |limit: usize| {
+            let mut new_query = (*query).clone();
+            new_query.limit = Some(limit);
+            new_query.page = Some(1); // Reset to page 1 when changing limit
+            query.set(new_query);
+        })
+    };
+
     let on_toggle_paused = {
         let dags_response = dags_response.clone();
 
@@ -93,23 +105,23 @@ pub fn dag_list() -> Html {
             dags_response.set(response);
         })
     };
-    
+
     let on_sort = {
         let query = query.clone();
-        
+
         Callback::from(move |(key, direction): (String, SortDirection)| {
             let sort_order = match direction {
                 SortDirection::Ascending => "asc",
                 SortDirection::Descending => "desc",
             };
-            
+
             let mut new_query = (*query).clone();
             new_query.sort_by = Some(key);
             new_query.sort_order = Some(sort_order.to_string());
             query.set(new_query);
         })
     };
-    
+
     let on_dag_click = {
         Callback::from(move |dag: DAG| {
             // Navigation would go here in a real app
@@ -138,23 +150,51 @@ pub fn dag_list() -> Html {
     let has_previous = current_page > 1;
     let has_next = current_page < total_pages;
 
-    // We're using a direct approach now with the simplified table component
-    
     // Determine current sort direction for table props
     let (sort_key, sort_direction) = {
         let sort_by = query.sort_by.clone().unwrap_or_else(|| "dag_id".to_string());
         let sort_order = query.sort_order.clone().unwrap_or_else(|| "asc".to_string());
-        
-        
+
         let direction = if sort_order == "asc" {
             Some(SortDirection::Ascending)
         } else {
             Some(SortDirection::Descending)
         };
-        
+
         (Some(sort_by), direction)
     };
-    
+
+    // Helper callback to handle sorting for a given column.
+    let handle_sort = {
+        let sort_key = sort_key.clone();
+        let sort_direction = sort_direction.clone();
+        let on_sort = on_sort.clone();
+        Callback::from(move |column: String| {
+            let new_direction = if sort_key.as_ref().map(|k| k == &column).unwrap_or(false) {
+                if sort_direction == Some(SortDirection::Ascending) {
+                    SortDirection::Descending
+                } else {
+                    SortDirection::Ascending
+                }
+            } else {
+                SortDirection::Ascending
+            };
+            on_sort.emit((column, new_direction));
+        })
+    };
+
+    let render_sort_icon = |column: &str| -> Html {
+        if sort_key.as_ref().map(|k| k == column).unwrap_or(false) {
+            if sort_direction == Some(SortDirection::Ascending) {
+                html! { <i class="fas fa-sort-up ml-1"></i> }
+            } else {
+                html! { <i class="fas fa-sort-down ml-1"></i> }
+            }
+        } else {
+            html! { <i class="fas fa-sort ml-1"></i> }
+        }
+    };
+
     let render_pagination = {
         let on_page_change = on_page_change.clone();
         let current_page = current_page;
@@ -198,6 +238,7 @@ pub fn dag_list() -> Html {
 
                 Callback::from(move |e: MouseEvent| {
                     e.prevent_default();
+                    e.stop_propagation();
                     if has_previous {
                         on_page_change.emit(current_page - 1);
                     }
@@ -209,6 +250,7 @@ pub fn dag_list() -> Html {
 
                 Callback::from(move |e: MouseEvent| {
                     e.prevent_default();
+                    e.stop_propagation();
                     if has_next {
                         on_page_change.emit(current_page + 1);
                     }
@@ -234,7 +276,7 @@ pub fn dag_list() -> Html {
                         </a>
                     </div>
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                        <div>
+                        <div class="flex items-center space-x-4">
                             <p class="text-sm text-gray-700 dark:text-gray-300">
                                 {"Showing "}
                                 <span class="font-medium">{((current_page - 1) * query_limit) + 1}</span>
@@ -244,6 +286,7 @@ pub fn dag_list() -> Html {
                                 <span class="font-medium">{total_count}</span>
                                 {" results"}
                             </p>
+
                         </div>
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
@@ -274,26 +317,15 @@ pub fn dag_list() -> Html {
 
     // Clone for use in the html macro
     let query_for_props = (*query).clone();
-    
-    // Row key function handled in render
 
     html! {
         <div>
-            <SearchFilter query={query_for_props} on_search={on_search} />
-
-            // <div class="flex justify-between items-center mb-4">
-            //     <div>
-            //         <h2 class="text-lg font-medium text-gray-900">
-            //             {format!("{} DAGs", total_count)}
-            //         </h2>
-            //     </div>
-            //     <div>
-            //         <button class="btn-airflow rounded-md px-4 py-2 text-sm font-medium">
-            //             <i class="fas fa-code mr-2"></i>
-            //             {"Create DAG"}
-            //         </button>
-            //     </div>
-            // </div>
+            <SearchFilter
+                query={query_for_props}
+                on_search={on_search}
+                on_rows_change={Some(on_limit_change)}
+                current_limit={query_limit}
+            />
 
             {
                 if let Some(error_message) = &*error {
@@ -308,21 +340,98 @@ pub fn dag_list() -> Html {
                             <Table>
                                 <TableHead>
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/3">{"DAG ID"}</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/12">{"Owner"}</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/8">{"Schedule"}</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/6">{"Last Run"}</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/6">{"Runs"}</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/6">{"Actions"}</th>
+                                        // DAG ID (sortable)
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/4">
+                                            <div
+                                                onclick={
+                                                    let handle_sort = handle_sort.clone();
+                                                    Callback::from(move |_| {
+                                                        handle_sort.emit("dag_id".to_string());
+                                                    })
+                                                }
+                                                style="cursor: pointer; display: flex; align-items: center;"
+                                            >
+                                                <span>{"DAG ID"}</span>
+                                                { render_sort_icon("dag_id") }
+                                            </div>
+                                        </th>
+                                        // Owner (sortable)
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/12">
+                                            <div
+                                                onclick={
+                                                    let handle_sort = handle_sort.clone();
+                                                    Callback::from(move |_| {
+                                                        handle_sort.emit("owner".to_string());
+                                                    })
+                                                }
+                                                style="cursor: pointer; display: flex; align-items: center;"
+                                            >
+                                                <span>{"Owner"}</span>
+                                                { render_sort_icon("owner") }
+                                            </div>
+                                        </th>
+                                        // Tags (not sortable)
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/8">
+                                            {"Tags"}
+                                        </th>
+                                        // Schedule (sortable)
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/8">
+                                            <div
+                                                onclick={
+                                                    let handle_sort = handle_sort.clone();
+                                                    Callback::from(move |_| {
+                                                        handle_sort.emit("schedule_interval".to_string());
+                                                    })
+                                                }
+                                                style="cursor: pointer; display: flex; align-items: center;"
+                                            >
+                                                <span>{"Schedule"}</span>
+                                                { render_sort_icon("schedule_interval") }
+                                            </div>
+                                        </th>
+                                        // Last Run (sortable)
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/6">
+                                            <div
+                                                onclick={
+                                                    let handle_sort = handle_sort.clone();
+                                                    Callback::from(move |_| {
+                                                        handle_sort.emit("last_run".to_string());
+                                                    })
+                                                }
+                                                style="cursor: pointer; display: flex; align-items: center;"
+                                            >
+                                                <span>{"Last Run"}</span>
+                                                { render_sort_icon("last_run") }
+                                            </div>
+                                        </th>
+                                        // Runs (sortable) – assuming sorting by total runs count
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/6">
+                                            <div
+                                                onclick={
+                                                    let handle_sort = handle_sort.clone();
+                                                    Callback::from(move |_| {
+                                                        handle_sort.emit("runs_count".to_string());
+                                                    })
+                                                }
+                                                style="cursor: pointer; display: flex; align-items: center;"
+                                            >
+                                                <span>{"Runs"}</span>
+                                                { render_sort_icon("runs_count") }
+                                            </div>
+                                        </th>
+                                        // Actions (not sortable)
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-1/12">
+                                            {"Actions"}
+                                        </th>
                                     </tr>
                                 </TableHead>
                                 <TableBody
                                     loading={*loading && fetch_data.loading}
                                     empty={dags.is_empty()}
                                     no_data_message="No DAGs found matching your criteria."
-                                    col_span={6}
+                                    col_span={7}
                                 >
-                                    { 
+                                    {
                                         dags.iter().enumerate().map(|(index, dag)| {
                                             let is_striped = index % 2 == 1;
                                             let status_class = match dag.status() {
@@ -332,7 +441,7 @@ pub fn dag_list() -> Html {
                                                 "success" => "status-success",
                                                 _ => "",
                                             };
-                                            
+
                                             let on_toggle_paused_cb = {
                                                 let on_toggle_paused = on_toggle_paused.clone();
                                                 let dag_id = dag.dag_id.clone();
@@ -344,56 +453,60 @@ pub fn dag_list() -> Html {
                                                     on_toggle_paused.emit((dag_id.clone(), !currently_paused));
                                                 })
                                             };
-                                            
+
                                             let toggle_text = if dag.paused { "Unpause" } else { "Pause" };
                                             let toggle_icon = if dag.paused { "fa-play" } else { "fa-pause" };
-                                            
-                                            let row_class = if is_striped { 
-                                                "bg-gray-50 dark:bg-gray-800 dark:text-gray-200" 
-                                            } else { 
-                                                "bg-white dark:bg-gray-900 dark:text-gray-200" 
+
+                                            let row_class = if is_striped {
+                                                "bg-gray-50 dark:bg-gray-800 dark:text-gray-200"
+                                            } else {
+                                                "bg-white dark:bg-gray-900 dark:text-gray-200"
                                             };
-                                            
+
                                             html! {
                                                 <tr class={format!("hover:bg-gray-100 dark:hover:bg-gray-700 {}", row_class)}>
-                                                    <td class="px-6 py-4">
+                                                    <td class="px-6 py-2">
                                                         <div>
                                                             <div class="font-medium text-gray-900 dark:text-gray-100 flex items-center">
                                                                 <span class={format!("status-circle {} mr-2", status_class)}></span>
-                                                                {&dag.dag_id}
+                                                                <a href={format!("/dag/{}/graph", dag.dag_id)} class="hover:text-blue-600 dark:hover:text-blue-400">
+                                                                    {&dag.dag_id}
+                                                                </a>
                                                             </div>
-                                                            <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                            <div class="text-sm text-gray-500 dark:text-gray-400">
                                                                 {dag.description.clone().unwrap_or_else(|| "No description".to_string())}
-                                                            </div>
-                                                            <div class="flex flex-wrap mt-1">
-                                                                {
-                                                                    dag.tags.iter().map(|tag| {
-                                                                        html! {
-                                                                            <span class="tag mr-1 mb-1">{tag}</span>
-                                                                        }
-                                                                    }).collect::<Html>()
-                                                                }
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td class="px-6 py-4">
+                                                    <td class="px-6 py-2">
                                                         <span>{&dag.owner}</span>
                                                     </td>
-                                                    <td class="px-6 py-4">
+                                                    <td class="px-6 py-2">
+                                                        <div class="flex flex-wrap">
+                                                            {
+                                                                dag.tags.iter().map(|tag| {
+                                                                    html! {
+                                                                        <span class="tag mr-1 mb-1">{tag}</span>
+                                                                    }
+                                                                }).collect::<Html>()
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-2">
                                                         <span>{&dag.schedule_interval}</span>
                                                     </td>
-                                                    <td class="px-6 py-4">
+                                                    <td class="px-6 py-2">
                                                         <span>{format_datetime(dag.last_run)}</span>
                                                     </td>
-                                                    <td class="px-6 py-4">
-                                                        <div>
-                                                            <span class="mr-2">{format!("Total: {}", dag.runs_count)}</span>
-                                                            <span class="text-green-600 mr-2">{format!("✓: {}", dag.success_count)}</span>
-                                                            <span class="text-red-600 mr-2">{format!("✗: {}", dag.failed_count)}</span>
+                                                    <td class="px-6 py-2">
+                                                        <div class="text-sm">
+                                                            <span class="mr-1">{format!("{}", dag.runs_count)}</span>
+                                                            <span class="text-green-600 mr-1">{format!("✓{}", dag.success_count)}</span>
+                                                            <span class="text-red-600 mr-1">{format!("✗{}", dag.failed_count)}</span>
                                                             {
                                                                 if dag.running_count > 0 {
                                                                     html! {
-                                                                        <span class="text-blue-600">{format!("Running: {}", dag.running_count)}</span>
+                                                                        <span class="text-blue-600">{format!("⟳{}", dag.running_count)}</span>
                                                                     }
                                                                 } else {
                                                                     html! {}
@@ -401,18 +514,23 @@ pub fn dag_list() -> Html {
                                                             }
                                                         </div>
                                                     </td>
-                                                    <td class="px-6 py-4">
+                                                    <td class="px-6 py-2">
                                                         <div class="flex space-x-2">
+                                                            <a href={format!("/dag/{}/graph", dag.dag_id)} class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" title="View DAG Graph">
+                                                                <i class="fas fa-project-diagram"></i>
+                                                            </a>
                                                             <button
-                                                                class="px-3 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded text-sm"
+                                                                class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
                                                                 onclick={on_toggle_paused_cb}
+                                                                title={toggle_text}
                                                             >
-                                                                <i class={format!("fas {} mr-1", toggle_icon)}></i>
-                                                                {toggle_text}
+                                                                <i class={format!("fas {}", toggle_icon)}></i>
                                                             </button>
-                                                            <button class="px-3 py-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded text-sm">
-                                                                <i class="fas fa-play mr-1"></i>
-                                                                {"Trigger"}
+                                                            <button
+                                                                class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+                                                                title="Trigger DAG"
+                                                            >
+                                                                <i class="fas fa-play"></i>
                                                             </button>
                                                         </div>
                                                     </td>
