@@ -4,6 +4,8 @@ use std::path::Path;
 use std::process::Command;
 
 fn main() {
+
+    /*
     // Trigger rebuild if anything in the frontend source changes.
     println!("cargo:rerun-if-changed=../frontend/src");
 
@@ -39,4 +41,7 @@ fn main() {
         .expect("failed to copy logo.png");
 
     // If there are additional assets (JS glue, CSS, etc.), copy them here.
+
+    */
+
 }

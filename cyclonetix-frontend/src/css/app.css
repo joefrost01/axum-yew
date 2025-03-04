@@ -1,0 +1,84 @@
+/*// Custom Airflow-like UI Variables*/
+:root {
+    --primary-color: #017cee;
+    --secondary-color: #6610f2;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+    --airflow-blue: #00C7D7;
+}
+
+/*// Light Theme*/
+   body.light-theme {
+       background-color: #f5f5f5;
+       color: #333333;
+   }
+
+/*// Dark Theme*/
+   body.dark-theme {
+       background-color: #1a1a1a;
+       color: #f5f5f5;
+
+       .q-card {
+           background-color: #2d2d2d;
+       }
+
+       .q-table__card {
+           background-color: #2d2d2d;
+           color: #f5f5f5;
+       }
+
+       .text-dark {
+           color: #e0e0e0 !important;
+       }
+
+       .bg-white {
+           background-color: #2d2d2d !important;
+       }
+
+       .q-field__native, .q-field__prefix, .q-field__suffix, .q-field__input {
+           color: #f5f5f5;
+       }
+   }
+
+/*// Common styles*/
+   .status-circle {
+       display: inline-block;
+       width: 10px;
+       height: 10px;
+       border-radius: 50%;
+       margin-right: 5px;
+   }
+
+.status-running {
+    background-color: var(--info-color);
+}
+
+.status-success {
+    background-color: var(--success-color);
+}
+
+.status-failed {
+    background-color: var(--danger-color);
+}
+
+.status-paused {
+    background-color: var(--warning-color);
+}
+
+.airflow-card {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+    &:hover {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    }
+}
+
+/*// Custom logo styling*/
+   .navbar-logo {
+       height: 40px;
+       margin-right: 10px;
+   }

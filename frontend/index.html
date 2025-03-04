@@ -11,6 +11,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+    
+    <!-- AG-Grid and its dependencies -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@30.0.6/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@30.0.6/styles/ag-theme-alpine.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@30.0.6/styles/ag-theme-alpine-dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@30.0.6/dist/ag-grid-community.min.js"></script>
     <style>
         /* Custom styles to match Airflow UI */
         :root {
@@ -350,6 +356,6 @@
 </head>
 <body>
 <div id="app"></div>
-<script src="/frontend/dist/frontend.js"></script>
+<script type="module" src="/frontend.js"></script>
 </body>
 </html>

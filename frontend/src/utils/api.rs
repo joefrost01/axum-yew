@@ -44,6 +44,9 @@ pub async fn fetch_dags(query: &DAGsQuery) -> Result<DAGsResponse, String> {
         format!("{}?{}", url, params.join("&"))
     };
 
+    // For development: return mock data instead of making actual API call
+    // In production, you would use the commented out code to make real API calls
+    /*
     let response = Request::get(&url)
         .send()
         .await
@@ -57,6 +60,60 @@ pub async fn fetch_dags(query: &DAGsQuery) -> Result<DAGsResponse, String> {
         .json::<DAGsResponse>()
         .await
         .map_err(|e| format!("Failed to parse response: {:?}", e))
+    */
+        
+    // Mock data for development
+    use crate::models::dag::DAG;
+    use chrono::Utc;
+    use uuid::Uuid;
+    
+    // Create 10 mock DAGs
+    let mut dags = Vec::new();
+    
+    for i in 1..11 {
+        let paused = i % 3 == 0;
+        let running = i % 5 == 0;
+        let failed = i % 7 == 0;
+        let now = Utc::now();
+        
+        dags.push(DAG {
+            id: uuid::Uuid::new_v4(),
+            dag_id: format!("example_dag_{}", i),
+            description: Some(format!("Example DAG {}", i)),
+            file_path: format!("/opt/airflow/dags/example_dag_{}.py", i),
+            owner: "airflow".to_string(),
+            paused,
+            schedule_interval: "0 0 * * *".to_string(),
+            last_run: Some(now),
+            next_run: Some(now),
+            tags: vec!["example".to_string(), format!("tag_{}", i)],
+            runs_count: i * 10,
+            success_count: i * 8,
+            failed_count: if failed { 2 } else { 0 },
+            running_count: if running { 1 } else { 0 },
+            created_at: now,
+            updated_at: now,
+        });
+    }
+    
+    // Apply paging
+    let page = query.page.unwrap_or(1);
+    let limit = query.limit.unwrap_or(10);
+    let total_count = dags.len();
+    
+    let start = (page - 1) * limit;
+    let end = std::cmp::min(start + limit, dags.len());
+    
+    let paged_dags = if start < dags.len() {
+        dags[start..end].to_vec()
+    } else {
+        Vec::new()
+    };
+    
+    Ok(DAGsResponse {
+        dags: paged_dags,
+        total_count,
+    })
 }
 
 pub async fn toggle_dag_paused(dag_id: &str, paused: bool) -> Result<(), String> {

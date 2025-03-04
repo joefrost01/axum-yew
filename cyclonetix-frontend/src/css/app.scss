@@ -1,0 +1,108 @@
+// app global css in SCSS form
+
+// Light mode styles
+body {
+  background-color: #f5f5f5; // Light grey background
+  
+  // Enhance card contrast in light mode
+  .q-card {
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  // Page container padding
+  .q-page-container {
+    padding-top: 20px;
+  }
+}
+
+// Custom header styles
+.q-header {
+  background: linear-gradient(to right, #1d1d1d, #2d2d2d);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+// Logo styles
+.q-toolbar .q-img {
+  transition: transform 0.3s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+// Dark mode styles
+body.body--dark {
+  --q-primary: #42a5f5;
+  --q-secondary: #26a69a;
+  --q-accent: #9c27b0;
+  
+  --q-positive: #21ba45;
+  --q-negative: #c10015;
+  --q-info: #31ccec;
+  --q-warning: #f2c037;
+  
+  // Background and text colors
+  background-color: #121212;
+  color: #f5f5f5;
+  
+  // Custom component styles
+  .airflow-card {
+    background-color: #1e1e1e;
+    color: #f5f5f5;
+  }
+  
+  .q-card {
+    background-color: #1e1e1e;
+  }
+  
+  .q-table {
+    background-color: #1e1e1e;
+    color: #f5f5f5;
+    
+    th {
+      background-color: #2d2d2d;
+      color: #f5f5f5;
+    }
+    
+    td {
+      border-bottom-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+  
+  .dag-cytoscape-container {
+    border-color: #333;
+    background-color: #1a1a1a;
+  }
+  
+  // Make DAG graph text more visible in dark mode
+  #dag-graph text {
+    fill: #f5f5f5 !important;
+    color: #f5f5f5 !important;
+  }
+}
+
+// Status circle styles for DAG cards
+.status-circle {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ccc;
+}
+
+.status-running {
+  background-color: var(--q-info);
+}
+
+.status-paused {
+  background-color: var(--q-warning);
+}
+
+.status-failed {
+  background-color: var(--q-negative);
+}
+
+.status-success {
+  background-color: var(--q-positive);
+}
